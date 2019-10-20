@@ -1,6 +1,6 @@
 ---
 title: "Joining Gapminder Data"
-author: "Your name"
+author: "Kejing Li"
 output: github_document
 ---
 
@@ -11,23 +11,54 @@ library(tidyverse)
 library(gapminder)
 
 gapminder
+
+#set theme for the report
+theme_set(theme_bw())
 ```
 
 # Import the HIV data
 
 ```{r}
+hiv <- read_csv("data/gapminder_hiv.csv")
+hiv
 ```
+
 
 # What is the relationship between HIV prevalence and life expectancy?
 
 ```{r}
+#use inner join because missing value would not be plotted by ggplot
+inner_join(gapminder, hiv) %>%
+  ggplot(aes(hivRate, lifeExp))+
+#it's easier to see the relationship if we log-transform hivRate
+  scale_x_log10()+
+  geom_point()+
+  geom_smooth()+
+  labs(title = "Relationship between HIV prevalence and life expectancy",
+      x = "HIV prevalence rate (axis logged)",
+      y = "Life expectancy")
 ```
+
+__Answer:__ As shown in the graph, Life expectancy and HIV prevalence rate is negatively related.
+
 
 # Which continents have the most observations with missing HIV data?
 
 ```{r}
+#use left join to keep all observations in gapminder
+left_join(gapminder, hiv) %>%
+#filter out the missing hivRate and count by continents
+  filter(is.na(hivRate)) %>%
+  count(continent) %>%
+#reorder the obeservations by its value
+  ggplot(aes(fct_reorder(continent, -n), n))+
+  geom_col()+
+  labs(title = "Missing HIV data by Continents",
+         x = "Continent",
+         y = "Number of missing observations")
 ```
 
+__Answer:__ Africa has the most observations with missing HIV, followed by Asia.
 
 ## Session info
 
