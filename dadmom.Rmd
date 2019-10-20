@@ -1,6 +1,6 @@
 ---
 title: "Tidying `dadmom`"
-author: "Your name"
+author: "Kejing Li"
 output: github_document
 ---
 
@@ -21,7 +21,18 @@ dadmom
 
 ```{r}
 # write your code to tidy the data here
+dadmom %>%
+#unite by sex
+  unite(mom, namem, incm) %>%
+  unite(dad, named, incd) %>%
+#put observation in rows
+  pivot_longer(cols = -famid,
+              names_to = "Sex",
+              values_to = "value") %>%
+#seperate name and income
+  separate(value, into = c("Name", "Income"))
 ```
+
 
 ## Session info
 
