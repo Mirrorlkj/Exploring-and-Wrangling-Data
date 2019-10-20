@@ -1,6 +1,6 @@
 ---
 title: "Exploring U.S. Supreme Court Decisions"
-author: "Your name"
+author: "Kejing Li"
 output: github_document
 ---
 
@@ -15,25 +15,59 @@ scdbv_mod <- read_csv("data/SCDB_2019_01_justiceCentered_Citation.csv")
 scdbv_leg <- read_csv("data/SCDB_Legacy_05_justiceCentered_Citation.csv")
 scdbv_mod
 scdbv_leg
+
+theme_set(theme_minimal())
 ```
 
 ## Combine the datasets
 
 ```{r}
-# scdbv <- # add your code here
+#convert docket and adminActionState into numerical 
+scdbv_leg <- 
+  scdbv_leg %>%
+  mutate(docket = as.numeric(docket),
+       adminActionState = as.numeric(adminActionState)) 
+
+#combine the datasets
+scdbv <- bind_rows(scdbv_leg, scdbv_mod)
 ```
 
 ## Recode variables as you find necessary
 
-```{r}
+?????????????????????????????????????????????????
 
+
+```{r}
+#select variables for analysis purpose 
+scdbv_select <- scdbv%>% 
+  select(caseIssuesId, term ,justice, justiceName, decisionDirection, majVotes, minVotes, majority, chief, dateDecision, direction)
+
+scdbv_select
 ```
 
 ## What percentage of cases in each term are decided by a one-vote margin (i.e. 5-4, 4-3, etc.)
 
 ```{r}
+scdbv_select %>%
+#calculate the margin
+  drop_na(majVotes, minVotes) %>%
+  mutate(margin = majVotes - minVotes) %>%
+  group_by(term) %>% 
+#calculate the percent
+  summarize(percent = sum(margin == 1)/n())%>%
+  ggplot(aes(term, percent))+
+  geom_line()+
+#change the y-axis into percent format
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1))+
+  labs(title = "Percent of U.S. Supreme Court cases decided by 1-vote margin",
+         x = "Term", 
+         y = "Percent of total cases decided",
+         caption = "Source: The Supreme Court Database")  
 
 ```
+
+__Answer:__ As seen above, the percent of total cases decided by 1-vote margin peaked at 50% around 1800, and stayed relatively constant afterwards until 1925, where an increase trend was shown. 
+
 
 ## In each term he served on the Court, in what percentage of cases was Justice Antonin Scalia in the majority?
 
