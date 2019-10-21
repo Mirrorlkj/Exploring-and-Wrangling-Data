@@ -21,6 +21,17 @@ library(tidyverse)
     ## x dplyr::lag()    masks stats::lag()
 
 ``` r
+library(lubridate)
+```
+
+    ## 
+    ## Attaching package: 'lubridate'
+
+    ## The following object is masked from 'package:base':
+    ## 
+    ##     date
+
+``` r
 # load data
 scdbv_mod <- read_csv("data/SCDB_2019_01_justiceCentered_Citation.csv")
 ```
@@ -188,12 +199,10 @@ scdbv <- bind_rows(scdbv_leg, scdbv_mod)
 
 ## Recode variables as you find necessary
 
-?????????????????????????????????????????????????
-
 ``` r
 #select variables for analysis purpose 
 scdbv_select <- scdbv%>% 
-  select(caseIssuesId, term ,justice, justiceName, decisionDirection, majVotes, minVotes, majority, chief, dateDecision, direction)
+  select(caseIssuesId, term ,justice, justiceName, decisionDirection, majVotes, minVotes, majority, chief, dateDecision, decisionType)
 
 scdbv_select
 ```
@@ -212,7 +221,7 @@ scdbv_select
     ##  9 1791-002-01~  1791       5 JBlair                     2        5
     ## 10 1791-002-01~  1791       6 JIredell                   2        5
     ## # ... with 252,472 more rows, and 5 more variables: minVotes <dbl>,
-    ## #   majority <dbl>, chief <chr>, dateDecision <chr>, direction <dbl>
+    ## #   majority <dbl>, chief <chr>, dateDecision <chr>, decisionType <dbl>
 
 ## What percentage of cases in each term are decided by a one-vote margin (i.e. 5-4, 4-3, etc.)
 
@@ -242,13 +251,120 @@ afterwards until 1925, where an increase trend was shown.
 
 ## In each term he served on the Court, in what percentage of cases was Justice Antonin Scalia in the majority?
 
+``` r
+scdbv_select %>%
+#Justice Antonin Scalia is coded as AScalia in the dataset
+  filter(justiceName == "AScalia") %>%
+  group_by(term) %>%
+#majority is coded 2 in the dataset 
+  summarize(percent = sum(majority == 2, na.rm = TRUE)/n()) %>%
+  ggplot(aes(term, percent))+
+  geom_line()+
+#change the y-axis into percent format and set its range from 0 to 1.
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), 
+                     limits = c(0, 1))+
+  labs(title = "Percent of the time Scalia was in the majority",
+         x = "Term", 
+         y = "Percentage of total decisions",
+         caption = "Source: The Supreme Court Database") 
+```
+
+![](scotus_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+
+**Answer:** In terms he served on the Court, Justice Antonin Scalia was
+in the majority in over 70% cases.
+
 ## Create a graph similar to above that adds a second component which compares the percentage for all cases versus non-unanimous cases (i.e. there was at least one dissenting vote)
+
+``` r
+scdbv_select %>%
+  filter(justiceName == "AScalia") %>%
+  group_by(term) %>%
+  summarize(percent = sum(majority == 2, na.rm = TRUE)/n(),
+#calculate the percent in the non-unanimous cases
+#minVotes is coded as the number of votes in dissent
+            percent_nu = sum(majority == 2 & minVotes >= 1, na.rm = TRUE)/sum(minVotes >= 1)) %>%
+  ggplot()+
+#use color to distinguish two lines 
+  geom_line(aes(term, percent, color = "All decisions"))+
+  geom_line(aes(term, percent_nu, color = "Non-unanimous decisions"))+
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1))+
+labs(title = "Percent of the time Scalia was in the majority",
+         x = "Term", 
+         y = "Percentage of total decisions",
+         caption = "Source: The Supreme Court Database",
+         color = "") +
+  theme(legend.position = "bottom")
+```
+
+![](scotus_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
+
+**Answer:** The graph suggests that Scalia was more likely to stay with
+majority when there was no dissenting votings.
 
 ## In each term, what percentage of cases were decided in the conservative direction?
 
-## The Chief Justice is frequently seen as capable of influencing the ideological direction of the Court. Create a graph similar to the one above that also incorporates information on who was the Chief Justice during the term.
+``` r
+scdbv_select %>%
+  group_by(term) %>%
+#conservative decision is coded 1 in the dataset
+  summarize(percent = sum(decisionDirection == 1, na.rm = TRUE)/n()) %>%
+  ggplot(aes(term, percent))+
+  geom_line()+
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1),
+                     limits = c(0, 0.7))+
+  labs(title = "U.S. Supreme Court",
+         subtitle = "Percent of cases decided in a conservative direction",
+         x = "Term", 
+         y = "Percent of total decisions",
+         caption = "Source: The Supreme Court Database")
+```
+
+![](scotus_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
+
+**Answer:** In the given terms, percentage of cases decided in the
+conservative direction fluctrated between 20% and 60%.
 
 ## In each term, how many of the term’s published decisions (decided after oral arguments) were announced in a given month?
+
+``` r
+#set month levels
+#reverse because `coord_flip` is deployed in the following code
+month_levels <- rev(c("Oct", "Nov", "Dec","Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"))
+
+scdbv_select %>%
+#decided after oral arguments is coded 1, 6, 7 in the dataset 
+  filter(decisionType == c(1, 6, 7)) %>%
+#change the data type of dataDecision into date
+  mutate(dateDecision = mdy(dateDecision)) %>%
+#extract month component from date Decision
+  mutate(month = month(dateDecision)) %>%
+#group by term-month
+  group_by(term, month) %>%
+#count by each distinct case id
+  summarize(numbers = n_distinct(caseIssuesId)) %>%
+#set levels and label them
+  ggplot(aes(factor(month, 
+                    levels = rev(c(10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9)),
+                    labels = month_levels), numbers))+
+  geom_boxplot()+
+  coord_flip()+
+  labs(title = "U.S. Supreme Court",
+         subtitle = "Number of decisions announced post-oral arguments per month, by term",
+         x = "", 
+         y = "Number of decisions announced in a term-month",
+         caption = "Source: The Supreme Court Database")
+```
+
+    ## Warning in decisionType == c(1, 6, 7): longer object length is not a
+    ## multiple of shorter object length
+
+![](scotus_files/figure-gfm/unnamed-chunk-8-1.png)<!-- -->
+
+**Answer:** As shown above, the third quarter saw least number of
+decision announced post-oral arguments, while the second quarter,
+especially June, was where most published decisions were annonuced
+through out the year.
 
 ## Session info
 
@@ -301,7 +417,7 @@ devtools::session_info()
     ##  lattice       0.20-38 2018-11-04 [1] CRAN (R 3.6.1)
     ##  lazyeval      0.2.2   2019-03-15 [1] CRAN (R 3.6.1)
     ##  lifecycle     0.1.0   2019-08-01 [1] CRAN (R 3.6.1)
-    ##  lubridate     1.7.4   2018-04-11 [1] CRAN (R 3.6.1)
+    ##  lubridate   * 1.7.4   2018-04-11 [1] CRAN (R 3.6.1)
     ##  magrittr      1.5     2014-11-22 [1] CRAN (R 3.6.1)
     ##  memoise       1.1.0   2017-04-21 [1] CRAN (R 3.6.1)
     ##  modelr        0.1.5   2019-08-08 [1] CRAN (R 3.6.1)
