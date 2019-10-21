@@ -146,7 +146,7 @@ month_levels <- rev(c("Oct", "Nov", "Dec","Jan", "Feb", "Mar", "Apr", "May", "Ju
 
 scdbv_select %>%
 #decided after oral arguments is coded 1, 6, 7 in the dataset 
-  filter(decisionType == c(1, 6, 7)) %>%
+  filter(decisionType %in% c(1, 6, 7)) %>%
 #change the data type of dataDecision into date
   mutate(dateDecision = mdy(dateDecision)) %>%
 #extract month component from date Decision
