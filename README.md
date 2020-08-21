@@ -1,4 +1,4 @@
-# Exploring and wrangling data
+# Exploring and Wrangling Data
 
 ## Required packages
 
