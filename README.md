@@ -1,4 +1,4 @@
-# Homework 03: Exploring and wrangling data
+# Exploring and wrangling data
 
 ## Required packages
 
